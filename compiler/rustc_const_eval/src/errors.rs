@@ -9,7 +9,7 @@ use rustc_middle::mir::interpret::{
     ResourceExhaustionInfo, UndefinedBehaviorInfo, UnsupportedOpInfo, ValidationErrorInfo,
 };
 use rustc_middle::ty::{self, Ty};
-use rustc_span::Span;
+use rustc_span::{ErrorGuaranteed, Span};
 use rustc_target::abi::call::AdjustForForeignAbiError;
 use rustc_target::abi::{Size, WrappingRange};
 
@@ -476,6 +476,150 @@ fn bad_pointer_message(msg: CheckInAllocMsg, handler: &Handler) -> String {
     handler.eagerly_translate_to_string(msg, [].into_iter())
 }
 
+pub struct UndefinedBehaviorInfoExt<'a>(UndefinedBehaviorInfo<'a>);
+
+impl IntoDiagnostic<'_> for UndefinedBehaviorInfoExt<'_> {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        use crate::fluent_generated::*;
+        use UndefinedBehaviorInfo::*;
+        match self.0 {
+            #[allow(rustc::untranslatable_diagnostic)]
+            Ub(str) => handler.struct_diagnostic(str.clone()),
+            Unreachable => handler.struct_diagnostic(const_eval_unreachable),
+            BoundsCheckFailed { .. } => handler.struct_diagnostic(const_eval_bounds_check_failed),
+            DivisionByZero => handler.struct_diagnostic(const_eval_division_by_zero),
+            RemainderByZero => handler.struct_diagnostic(const_eval_remainder_by_zero),
+            DivisionOverflow => handler.struct_diagnostic(const_eval_division_overflow),
+            RemainderOverflow => handler.struct_diagnostic(const_eval_remainder_overflow),
+            PointerArithOverflow => {
+                handler.struct_diagnostic(const_eval_pointer_arithmetic_overflow)
+            }
+            InvalidMeta(InvalidMetaKind::SliceTooBig) => {
+                handler.struct_diagnostic(const_eval_invalid_meta_slice)
+            }
+            InvalidMeta(InvalidMetaKind::TooBig) => {
+                handler.struct_diagnostic(const_eval_invalid_meta)
+            }
+            UnterminatedCString(_) => handler.struct_diagnostic(const_eval_unterminated_c_string),
+            PointerUseAfterFree(_) => handler.struct_diagnostic(const_eval_pointer_use_after_free),
+            PointerOutOfBounds { ptr_size: Size::ZERO, .. } => {
+                handler.struct_diagnostic(const_eval_zst_pointer_out_of_bounds)
+            }
+            PointerOutOfBounds { .. } => {
+                handler.struct_diagnostic(const_eval_pointer_out_of_bounds)
+            }
+            DanglingIntPointer(0, _) => handler.struct_diagnostic(const_eval_dangling_null_pointer),
+            DanglingIntPointer(..) => handler.struct_diagnostic(const_eval_dangling_int_pointer),
+            AlignmentCheckFailed { .. } => {
+                handler.struct_diagnostic(const_eval_alignment_check_failed)
+            }
+            WriteToReadOnly(_) => handler.struct_diagnostic(const_eval_write_to_read_only),
+            DerefFunctionPointer(_) => handler.struct_diagnostic(const_eval_deref_function_pointer),
+            DerefVTablePointer(_) => handler.struct_diagnostic(const_eval_deref_vtable_pointer),
+            InvalidBool(_) => handler.struct_diagnostic(const_eval_invalid_bool),
+            InvalidChar(_) => handler.struct_diagnostic(const_eval_invalid_char),
+            InvalidTag(_) => handler.struct_diagnostic(const_eval_invalid_tag),
+            InvalidFunctionPointer(_) => {
+                handler.struct_diagnostic(const_eval_invalid_function_pointer)
+            }
+            InvalidVTablePointer(_) => handler.struct_diagnostic(const_eval_invalid_vtable_pointer),
+            InvalidStr(_) => handler.struct_diagnostic(const_eval_invalid_str),
+            InvalidUninitBytes(None) => {
+                handler.struct_diagnostic(const_eval_invalid_uninit_bytes_unknown)
+            }
+            InvalidUninitBytes(Some(_)) => {
+                handler.struct_diagnostic(const_eval_invalid_uninit_bytes)
+            }
+            DeadLocal => handler.struct_diagnostic(const_eval_dead_local),
+            ScalarSizeMismatch(_) => handler.struct_diagnostic(const_eval_scalar_size_mismatch),
+            UninhabitedEnumVariantWritten => {
+                handler.struct_diagnostic(const_eval_uninhabited_enum_variant_written)
+            }
+            Validation(e) => ValidationErrorInfoExt(e).into_diagnostic(handler),
+            Custom(x) => handler.struct_diagnostic((x.msg)()),
+        }
+    }
+}
+
+pub struct ValidationErrorInfoExt<'tcx>(ValidationErrorInfo<'tcx>);
+
+impl IntoDiagnostic<'_> for ValidationErrorInfoExt<'_> {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        use crate::fluent_generated::*;
+        use crate::interpret::ValidationErrorKind::*;
+        let msg = match self.0.kind {
+            PtrToUninhabited { ptr_kind: PointerKind::Box, .. } => const_eval_box_to_uninhabited,
+            PtrToUninhabited { ptr_kind: PointerKind::Ref, .. } => const_eval_ref_to_uninhabited,
+
+            PtrToStatic { ptr_kind: PointerKind::Box, .. } => const_eval_box_to_static,
+            PtrToStatic { ptr_kind: PointerKind::Ref, .. } => const_eval_ref_to_static,
+
+            PtrToMut { ptr_kind: PointerKind::Box, .. } => const_eval_box_to_mut,
+            PtrToMut { ptr_kind: PointerKind::Ref, .. } => const_eval_ref_to_mut,
+
+            ExpectedNonPtr { .. } => const_eval_expected_non_ptr,
+            MutableRefInConst => const_eval_mutable_ref_in_const,
+            NullFnPtr => const_eval_null_fn_ptr,
+            NeverVal => const_eval_never_val,
+            NullablePtrOutOfRange { .. } => const_eval_nullable_ptr_out_of_range,
+            PtrOutOfRange { .. } => const_eval_ptr_out_of_range,
+            OutOfRange { .. } => const_eval_out_of_range,
+            UnsafeCell => const_eval_unsafe_cell,
+            UninhabitedVal { .. } => const_eval_uninhabited_val,
+            InvalidEnumTag { .. } => const_eval_invalid_enum_tag,
+            UninitEnumTag => const_eval_uninit_enum_tag,
+            UninitStr => const_eval_uninit_str,
+            Uninit { expected: ExpectedKind::Bool } => const_eval_uninit_bool,
+            Uninit { expected: ExpectedKind::Reference } => const_eval_uninit_ref,
+            Uninit { expected: ExpectedKind::Box } => const_eval_uninit_box,
+            Uninit { expected: ExpectedKind::RawPtr } => const_eval_uninit_raw_ptr,
+            Uninit { expected: ExpectedKind::InitScalar } => const_eval_uninit_init_scalar,
+            Uninit { expected: ExpectedKind::Char } => const_eval_uninit_char,
+            Uninit { expected: ExpectedKind::Float } => const_eval_uninit_float,
+            Uninit { expected: ExpectedKind::Int } => const_eval_uninit_int,
+            Uninit { expected: ExpectedKind::FnPtr } => const_eval_uninit_fn_ptr,
+            UninitVal => const_eval_uninit,
+            InvalidVTablePtr { .. } => const_eval_invalid_vtable_ptr,
+            InvalidMetaSliceTooLarge { ptr_kind: PointerKind::Box } => {
+                const_eval_invalid_box_slice_meta
+            }
+            InvalidMetaSliceTooLarge { ptr_kind: PointerKind::Ref } => {
+                const_eval_invalid_ref_slice_meta
+            }
+
+            InvalidMetaTooLarge { ptr_kind: PointerKind::Box } => const_eval_invalid_box_meta,
+            InvalidMetaTooLarge { ptr_kind: PointerKind::Ref } => const_eval_invalid_ref_meta,
+            UnalignedPtr { ptr_kind: PointerKind::Ref, .. } => const_eval_unaligned_ref,
+            UnalignedPtr { ptr_kind: PointerKind::Box, .. } => const_eval_unaligned_box,
+
+            NullPtr { ptr_kind: PointerKind::Box } => const_eval_null_box,
+            NullPtr { ptr_kind: PointerKind::Ref } => const_eval_null_ref,
+            DanglingPtrNoProvenance { ptr_kind: PointerKind::Box, .. } => {
+                const_eval_dangling_box_no_provenance
+            }
+            DanglingPtrNoProvenance { ptr_kind: PointerKind::Ref, .. } => {
+                const_eval_dangling_ref_no_provenance
+            }
+            DanglingPtrOutOfBounds { ptr_kind: PointerKind::Box } => {
+                const_eval_dangling_box_out_of_bounds
+            }
+            DanglingPtrOutOfBounds { ptr_kind: PointerKind::Ref } => {
+                const_eval_dangling_ref_out_of_bounds
+            }
+            DanglingPtrUseAfterFree { ptr_kind: PointerKind::Box } => {
+                const_eval_dangling_box_use_after_free
+            }
+            DanglingPtrUseAfterFree { ptr_kind: PointerKind::Ref } => {
+                const_eval_dangling_ref_use_after_free
+            }
+            InvalidBool { .. } => const_eval_validation_invalid_bool,
+            InvalidChar { .. } => const_eval_validation_invalid_char,
+            InvalidFnPtr { .. } => const_eval_invalid_fn_ptr,
+        };
+        handler.struct_diagnostic(msg)
+    }
+}
+
 impl<'a> ReportErrorExt for UndefinedBehaviorInfo<'a> {
     fn diagnostic_message(&self) -> DiagnosticMessage {
         use crate::fluent_generated::*;
@@ -797,6 +941,39 @@ impl ReportErrorExt for UnsupportedOpInfo {
     }
 }
 
+pub struct UnsupportedExt(UnsupportedOpInfo);
+
+impl IntoDiagnostic<'_> for UnsupportedExt {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        use crate::fluent_generated::*;
+        let msg = match self.0 {
+            UnsupportedOpInfo::Unsupported(s) => s.clone().into(),
+            UnsupportedOpInfo::PartialPointerOverwrite(_) => const_eval_partial_pointer_overwrite,
+            UnsupportedOpInfo::PartialPointerCopy(_) => const_eval_partial_pointer_copy,
+            UnsupportedOpInfo::ReadPointerAsBytes => const_eval_read_pointer_as_bytes,
+            UnsupportedOpInfo::ThreadLocalStatic(_) => const_eval_thread_local_static,
+            UnsupportedOpInfo::ReadExternStatic(_) => const_eval_read_extern_static,
+        };
+        handler.struct_diagnostic(msg)
+    }
+}
+
+pub struct InterpErrorExt<'a>(pub InterpError<'a>);
+
+impl IntoDiagnostic<'_> for InterpErrorExt<'_> {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        match self.0 {
+            InterpError::UndefinedBehavior(ub) => {
+                UndefinedBehaviorInfoExt(ub).into_diagnostic(handler)
+            }
+            InterpError::Unsupported(e) => UnsupportedExt(e).into_diagnostic(handler),
+            InterpError::InvalidProgram(e) => InvalidProgramInfoExt(e).into_diagnostic(handler),
+            InterpError::ResourceExhaustion(e) => ResourceExhaustionExt(e).into_diagnostic(handler),
+            InterpError::MachineStop(_) => todo!("machine stop"),
+        }
+    }
+}
+
 impl<'tcx> ReportErrorExt for InterpError<'tcx> {
     fn diagnostic_message(&self) -> DiagnosticMessage {
         match self {
@@ -821,6 +998,25 @@ impl<'tcx> ReportErrorExt for InterpError<'tcx> {
                 builder.set_arg(name, value);
             }),
         }
+    }
+}
+
+pub struct InvalidProgramInfoExt<'a>(InvalidProgramInfo<'a>);
+
+impl IntoDiagnostic<'_> for InvalidProgramInfoExt<'_> {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        use crate::fluent_generated::*;
+        let msg = match self.0 {
+            InvalidProgramInfo::TooGeneric => const_eval_too_generic,
+            InvalidProgramInfo::AlreadyReported(_) => const_eval_already_reported,
+            InvalidProgramInfo::Layout(e) => e.diagnostic_message(),
+            InvalidProgramInfo::FnAbiAdjustForForeignAbi(_) => {
+                rustc_middle::error::middle_adjust_for_foreign_abi_error
+            }
+            InvalidProgramInfo::SizeOfUnsizedType(_) => const_eval_size_of_unsized,
+            InvalidProgramInfo::UninitUnsizedLocal => const_eval_uninit_unsized_local,
+        };
+        handler.struct_diagnostic(msg)
     }
 }
 
@@ -877,4 +1073,18 @@ impl ReportErrorExt for ResourceExhaustionInfo {
         }
     }
     fn add_args<G: EmissionGuarantee>(self, _: &Handler, _: &mut DiagnosticBuilder<'_, G>) {}
+}
+
+pub struct ResourceExhaustionExt(ResourceExhaustionInfo);
+
+impl IntoDiagnostic<'_> for ResourceExhaustionExt {
+    fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
+        use crate::fluent_generated::*;
+        let msg = match self.0 {
+            ResourceExhaustionInfo::StackFrameLimitReached => const_eval_stack_frame_limit_reached,
+            ResourceExhaustionInfo::MemoryExhausted => const_eval_memory_exhausted,
+            ResourceExhaustionInfo::AddressSpaceFull => const_eval_address_space_full,
+        };
+        handler.struct_diagnostic(msg)
+    }
 }

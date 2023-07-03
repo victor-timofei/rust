@@ -34,6 +34,7 @@ pub mod interpret;
 pub mod transform;
 pub mod util;
 
+pub use errors::InterpErrorExt;
 pub use errors::ReportErrorExt;
 
 use rustc_errors::{DiagnosticMessage, SubdiagnosticMessage};
