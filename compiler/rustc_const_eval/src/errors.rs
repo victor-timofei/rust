@@ -665,7 +665,6 @@ impl IntoDiagnostic<'_> for UndefinedBehaviorInfoExt<'_> {
 pub struct ValidationErrorInfoExt<'tcx>(ValidationErrorInfo<'tcx>);
 
 impl IntoDiagnostic<'_> for ValidationErrorInfoExt<'_> {
-    // TODO: This has to be changed to EmissionGuarantee
     fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
         use crate::fluent_generated::*;
         use crate::interpret::ValidationErrorKind::*;
@@ -1236,7 +1235,6 @@ impl ReportErrorExt for UnsupportedOpInfo {
 
 pub struct UnsupportedExt(UnsupportedOpInfo);
 
-// TODO: change to EmissionGuarantee
 impl IntoDiagnostic<'_> for UnsupportedExt {
     fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
         use crate::fluent_generated::*;
@@ -1291,7 +1289,6 @@ impl IntoDiagnostic<'_> for UnsupportedExt {
 
 pub struct InterpErrorExt<'a>(pub InterpError<'a>);
 
-// TODO: EmissionGuarantee
 impl IntoDiagnostic<'_> for InterpErrorExt<'_> {
     fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
         match self.0 {
@@ -1308,7 +1305,6 @@ impl IntoDiagnostic<'_> for InterpErrorExt<'_> {
 
 pub struct MachineStopExt(Box<dyn MachineStopType>);
 
-// TODO: EmissionGuarantee
 impl IntoDiagnostic<'_> for MachineStopExt {
     fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
         let mut builder = handler.struct_diagnostic(self.0.diagnostic_message().clone());
@@ -1349,7 +1345,6 @@ impl<'tcx> ReportErrorExt for InterpError<'tcx> {
 
 pub struct InvalidProgramInfoExt<'a>(InvalidProgramInfo<'a>);
 
-// TODO: EmissionGuarantee
 impl IntoDiagnostic<'_> for InvalidProgramInfoExt<'_> {
     fn into_diagnostic(self, handler: &'_ Handler) -> DiagnosticBuilder<'_, ErrorGuaranteed> {
         use crate::fluent_generated::*;
