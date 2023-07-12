@@ -3,7 +3,6 @@ use std::num::NonZeroU64;
 
 use log::trace;
 
-use rustc_const_eval::ReportErrorExt;
 use rustc_errors::DiagnosticMessage;
 use rustc_span::{source_map::DUMMY_SP, SpanData, Symbol};
 use rustc_target::abi::{Align, Size};

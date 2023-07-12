@@ -9,7 +9,6 @@ use rustc_const_eval::interpret::Immediate;
 use rustc_const_eval::interpret::{
     self, InterpCx, InterpResult, LocalValue, MemoryKind, OpTy, Scalar, StackPopCleanup,
 };
-use rustc_const_eval::ReportErrorExt;
 use rustc_hir::def::DefKind;
 use rustc_hir::HirId;
 use rustc_index::bit_set::BitSet;
@@ -233,7 +232,10 @@ impl<'mir, 'tcx> ConstPropagator<'mir, 'tcx> {
                 op
             }
             Err(e) => {
-                trace!("get_const failed: {:?}", e.into_kind().debug());
+                trace!(
+                    "get_const failed: {:?}",
+                    todo!("find a way to convert diagnostic to string")
+                );
                 return None;
             }
         };
