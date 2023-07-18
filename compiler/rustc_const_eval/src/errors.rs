@@ -9,7 +9,7 @@ use rustc_middle::mir::interpret::{
     MachineStopType, PointerKind, ResourceExhaustionInfo, UndefinedBehaviorInfo, UnsupportedOpInfo,
     ValidationErrorInfo,
 };
-use rustc_middle::ty::Ty;
+use rustc_middle::ty::{self, Ty};
 use rustc_span::{ErrorGuaranteed, Span};
 use rustc_target::abi::call::AdjustForForeignAbiError;
 use rustc_target::abi::{Size, WrappingRange};
@@ -954,6 +954,25 @@ impl IntoDiagnostic<'_> for InterpErrorExt<'_> {
             InterpError::ResourceExhaustion(e) => ResourceExhaustionExt(e).into_diagnostic(handler),
             InterpError::MachineStop(e) => MachineStopExt(e).into_diagnostic(handler),
         }
+    }
+}
+
+impl InterpErrorExt<'_> {
+    /// Translate InterpError to String.
+    ///
+    /// This should not be used for any user-facing diagnostics,
+    /// only for debug messages in the docs.
+    pub fn to_string(self) -> String {
+        ty::tls::with(move |tcx| {
+            let handler = &tcx.sess.parse_sess.span_diagnostic;
+            let builder = self.into_diagnostic(handler);
+            let s = handler.eagerly_translate_to_string(
+                builder.message.first().unwrap().0.to_owned(),
+                builder.args(),
+            );
+            builder.cancel();
+            s
+        })
     }
 }
 

@@ -6,7 +6,6 @@ use either::Right;
 use rustc_const_eval::const_eval::CheckAlignment;
 use rustc_const_eval::InterpErrorExt;
 use rustc_data_structures::fx::FxHashSet;
-use rustc_errors::{DiagnosticMessage, IntoDiagnostic};
 use rustc_hir::def::DefKind;
 use rustc_index::bit_set::BitSet;
 use rustc_index::{IndexSlice, IndexVec};
@@ -17,7 +16,6 @@ use rustc_middle::mir::*;
 use rustc_middle::ty::layout::{LayoutError, LayoutOf, LayoutOfHelpers, TyAndLayout};
 use rustc_middle::ty::InternalSubsts;
 use rustc_middle::ty::{self, ConstKind, Instance, ParamEnv, Ty, TyCtxt, TypeVisitableExt};
-use rustc_span::sym::DiagnosticMessage;
 use rustc_span::{def_id::DefId, Span, DUMMY_SP};
 use rustc_target::abi::{self, Align, HasDataLayout, Size, TargetDataLayout};
 use rustc_target::spec::abi::Abi as CallAbi;
@@ -388,17 +386,7 @@ impl<'mir, 'tcx> ConstPropagator<'mir, 'tcx> {
                 op
             }
             Err(e) => {
-                let msg = ty::tls::with(move |tcx| {
-                    let handler = &tcx.sess.parse_sess.span_diagnostic;
-                    let err = InterpErrorExt(e.into_kind());
-                    let builder = err.into_diagnostic(handler);
-                    builder.cancel();
-                    "Should be diagnostic message"
-                });
-                trace!(
-                    "get_const failed: {:?}",
-                    todo!("find a way to convert diagnostic builder to string")
-                );
+                trace!("get_const failed: {}", InterpErrorExt(e.into_kind()).to_string());
                 return None;
             }
         };

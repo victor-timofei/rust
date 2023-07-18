@@ -165,7 +165,7 @@ where
             let span = span.unwrap_or(our_span);
 
             let handler = &tcx.sess.parse_sess.span_diagnostic;
-            let mut err = handler.create_err(Spanned { span, node: InterpErrorExt(error)});
+            let mut err = handler.create_err(Spanned { span, node: InterpErrorExt(error) });
 
             for frame in frames {
                 err.eager_subdiagnostic(handler, frame);
