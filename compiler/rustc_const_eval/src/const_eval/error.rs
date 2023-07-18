@@ -163,18 +163,16 @@ where
             // Report as hard error.
             let (our_span, frames) = get_span_and_frames();
             let span = span.unwrap_or(our_span);
-            let err = tcx.sess.create_err(Spanned { span, node: InterpErrorExt(error) });
 
-            let Some((mut err, handler)) = err.into_diagnostic() else {
-                panic!("did not emit diag");
-            };
+            let handler = &tcx.sess.parse_sess.span_diagnostic;
+            let mut err = handler.create_err(Spanned { span, node: InterpErrorExt(error)});
 
             for frame in frames {
                 err.eager_subdiagnostic(handler, frame);
             }
 
             // Use *our* span to label the interp error
-            ErrorHandled::Reported(handler.emit_diagnostic(&mut err).unwrap().into())
+            ErrorHandled::Reported(err.emit().into())
         }
     }
 }
